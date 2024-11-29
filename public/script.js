@@ -10,9 +10,21 @@ document.addEventListener("DOMContentLoaded", () => {
   const encryptSubmitBtn = document.getElementById("encryptSubmitBtn");
   const decryptSubmitBtn = document.getElementById("decryptSubmitBtn");
 
+  const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+
   // Validation function
   function validateForm(fileInput, keyInput, submitBtn) {
-    submitBtn.disabled = !(fileInput.files.length > 0 && keyInput.value.trim() !== "");
+    const file = fileInput.files[0];
+    const isValidSize = file ? file.size <= MAX_FILE_SIZE : false;
+    const isValidKey = keyInput.value.trim() !== "";
+
+    submitBtn.disabled = !(isValidSize && isValidKey);
+
+    if (file && !isValidSize) {
+      messageEl.textContent = "File size must be less than 100MB";
+    } else {
+      messageEl.textContent = "";
+    }
   }
 
   // Add listeners for encrypt inputs
@@ -37,6 +49,11 @@ document.addEventListener("DOMContentLoaded", () => {
     input.addEventListener("change", (e) => {
       const fileName = e.target.files[0]?.name || "No file chosen";
       e.target.parentElement.querySelector(".file-name").textContent = fileName;
+
+      // Validate file size immediately
+      const submitBtn = e.target.id === "encryptFile" ? encryptSubmitBtn : decryptSubmitBtn;
+      const keyInput = e.target.id === "encryptFile" ? document.getElementById("encryptKey") : document.getElementById("decryptKey");
+      validateForm(e.target, keyInput, submitBtn);
     });
   });
 
