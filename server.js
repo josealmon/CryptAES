@@ -5,7 +5,16 @@ const fs = require("fs");
 const path = require("path");
 
 const app = express();
-const upload = multer({ dest: "uploads/" });
+
+// At the top of server.js
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+
+const upload = multer({
+  dest: "uploads/",
+  limits: {
+    fileSize: MAX_FILE_SIZE,
+  },
+});
 
 const uploadsDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -116,30 +125,29 @@ function cleanUploadsFolder() {
 app.use(express.static("public"));
 
 app.post("/encrypt", upload.single("file"), async (req, res) => {
-  const { file } = req;
-  const { key } = req.body;
-
-  if (!file || !key) {
-    return res.status(400).send("File and key are required.");
-  }
-
   try {
+    const { file } = req;
+    const { key } = req.body;
+
+    if (!file || !key) {
+      return res.status(400).json({ message: "File and key are required" });
+    }
+
     const outputPath = path.join(__dirname, "uploads", `encrypted_${file.originalname}`);
 
     await encryptFile(file.path, outputPath, key);
 
-    // Eliminar archivo temporal
-    fs.unlinkSync(file.path);
-
-    // Leer y enviar archivo encriptado
-    const encryptedFile = fs.readFileSync(outputPath);
-    fs.unlinkSync(outputPath);
-
+    // Send file and cleanup
     res.setHeader("Content-Disposition", `attachment; filename=encrypted_${file.originalname}`);
-    res.send(encryptedFile);
+    res.sendFile(outputPath, () => {
+      // Cleanup after sending
+      fs.unlinkSync(file.path);
+      fs.unlinkSync(outputPath);
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).send("Error encrypting the file.");
+    // Cleanup on error
+    if (req.file) fs.unlinkSync(req.file.path);
+    res.status(500).json({ message: "Error encrypting file" });
   }
 });
 
@@ -156,15 +164,31 @@ app.post("/decrypt", upload.single("file"), async (req, res) => {
 
     await decryptFile(file.path, outputPath, key)
       .then(() => {
-        res.sendFile(outputPath);
+        res.sendFile(outputPath, () => {
+          // Cleanup after sending
+          fs.unlinkSync(file.path);
+          fs.unlinkSync(outputPath);
+        });
       })
       .catch((error) => {
-        // Send proper JSON response for decryption errors
+        // Cleanup on error
+        fs.unlinkSync(file.path);
         res.status(400).json({ message: "Invalid decryption key" });
       });
   } catch (error) {
+    // Cleanup on error
+    if (req.file) fs.unlinkSync(req.file.path);
     res.status(500).json({ message: "Server error during decryption" });
   }
+});
+
+app.use((error, req, res, next) => {
+  if (error instanceof multer.MulterError) {
+    if (error.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({ message: "File size must be less than 100MB" });
+    }
+  }
+  next(error);
 });
 
 const PORT = process.env.PORT || 3000;
