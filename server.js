@@ -9,6 +9,9 @@ const upload = multer({ dest: "uploads/" });
 
 app.use(express.static("public"));
 
+cleanUploadsFolder();
+setInterval(cleanUploadsFolder, 60 * 60 * 1000);
+
 app.post("/encrypt", upload.single("file"), (req, res) => {
   const { file } = req;
   const { key } = req.body;
@@ -89,3 +92,28 @@ const PORT = 3000;
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });
+
+function cleanUploadsFolder() {
+  const uploadsDir = path.join(__dirname, "uploads");
+
+  try {
+    // Leer archivos en el directorio
+    const files = fs.readdirSync(uploadsDir);
+
+    files.forEach((file) => {
+      const filePath = path.join(uploadsDir, file);
+
+      // Borrar archivos más antiguos de 1 hora
+      const stat = fs.statSync(filePath);
+      const now = new Date();
+      const fileAge = (now - stat.mtime) / (1000 * 60 * 60); // en horas
+
+      if (fileAge > 1) {
+        fs.unlinkSync(filePath);
+        console.log(`Deleted old file: ${file}`);
+      }
+    });
+  } catch (err) {
+    console.error("Error cleaning uploads folder:", err);
+  }
+}

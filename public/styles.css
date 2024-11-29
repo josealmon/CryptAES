@@ -117,3 +117,28 @@ button[type="submit"]:hover {
   font-weight: 500;
   text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
 }
+
+::placeholder {
+  color: rgba(255, 255, 255, 0.6); /* Placeholder más visible */
+  opacity: 1; /* Necesario para Firefox */
+}
+
+/* Estilo para el enlace About AES */
+.about-aes {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  font-size: 0.9rem;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 8px 15px;
+  border-radius: 20px;
+  transition: all 0.3s ease;
+}
+
+.about-aes:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+}
