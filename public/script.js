@@ -57,6 +57,37 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
+  document.querySelectorAll(".dropzone").forEach((dropzone) => {
+    dropzone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropzone.classList.add("dragover");
+    });
+
+    dropzone.addEventListener("dragleave", () => {
+      dropzone.classList.remove("dragover");
+    });
+
+    dropzone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropzone.classList.remove("dragover");
+
+      const fileInput = dropzone.querySelector(".file-input");
+      const fileNameElement = dropzone.querySelector(".file-name");
+
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        fileInput.files = e.dataTransfer.files;
+        fileNameElement.textContent = e.dataTransfer.files[0].name;
+
+        const submitBtn = fileInput.id === "encryptFile" ? encryptSubmitBtn : decryptSubmitBtn;
+        const keyInput = fileInput.id === "encryptFile" ? document.getElementById("encryptKey") : document.getElementById("decryptKey");
+
+        validateForm(fileInput, keyInput, submitBtn);
+
+        e.dataTransfer.clearData();
+      }
+    });
+  });
+
   // Toggle between encrypt and decrypt
   encryptBtn.addEventListener("click", () => {
     encryptBtn.classList.add("active");

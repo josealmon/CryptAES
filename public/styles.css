@@ -223,6 +223,20 @@ button[type="submit"]:disabled:hover {
   pointer-events: none;
 }
 
+.dropzone {
+  /* Quitar la línea de puntos alrededor del selector de archivos */
+  /* border: 2px dashed rgba(255, 255, 255, 0.3); */
+  transition: background 0.3s ease;
+}
+
+.dropzone.dragover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.dropzone .file-button {
+  pointer-events: none;
+}
+
 @media (max-width: 600px) {
   body {
     padding: 1rem;
