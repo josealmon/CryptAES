@@ -7,6 +7,11 @@ const path = require("path");
 const app = express();
 const upload = multer({ dest: "uploads/" });
 
+const uploadsDir = path.join(__dirname, "uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir);
+}
+
 function encryptFile(inputPath, outputPath, key) {
   return new Promise((resolve, reject) => {
     const algorithm = "aes-256-cbc";
@@ -162,11 +167,11 @@ app.post("/decrypt", upload.single("file"), async (req, res) => {
   }
 });
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   cleanUploadsFolder();
 
   setInterval(cleanUploadsFolder, 3600000);
 
-  console.log(`Server running at http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
