@@ -43,6 +43,7 @@ function decryptFile(inputPath, outputPath, key) {
     const algorithm = "aes-256-cbc";
     const fileSize = fs.statSync(inputPath).size;
     let processed = 0;
+    let lastProgress = 0;
 
     // First read the IV (first 16 bytes)
     const readStream = fs.createReadStream(inputPath);
@@ -58,8 +59,11 @@ function decryptFile(inputPath, outputPath, key) {
       }
 
       processed += chunk.length;
-      const progress = Math.round((processed / fileSize) * 100);
-      console.log(`Decryption progress: ${progress}%`);
+      const currentProgress = Math.round((processed / fileSize) * 100);
+      if (currentProgress > lastProgress) {
+        console.log(`Decryption progress: ${currentProgress}%`);
+        lastProgress = currentProgress;
+      }
     });
 
     readStream.on("end", () => {
