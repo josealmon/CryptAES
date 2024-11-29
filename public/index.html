@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Secure File Encryption/Decryption</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Secure File Encryption/Decryption</h1>
+
+      <div class="toggle-buttons">
+        <button id="encryptBtn" class="active">Encrypt</button>
+        <button id="decryptBtn">Decrypt</button>
+      </div>
+
+      <form id="fileForm">
+        <div class="form-section" id="encryptSection">
+          <label for="encryptFile">Choose file to encrypt:</label>
+          <input type="file" id="encryptFile" name="file" />
+
+          <label for="encryptKey">Encryption Key:</label>
+          <input type="password" id="encryptKey" name="key" placeholder="Enter encryption key" />
+
+          <button type="submit">Encrypt File</button>
+        </div>
+
+        <div class="form-section" id="decryptSection" style="display: none">
+          <label for="decryptFile">Choose encrypted file:</label>
+          <input type="file" id="decryptFile" name="file" />
+
+          <label for="decryptKey">Decryption Key:</label>
+          <input type="password" id="decryptKey" name="key" placeholder="Enter decryption key" />
+
+          <button type="submit">Decrypt File</button>
+        </div>
+      </form>
+
+      <p id="message"></p>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
