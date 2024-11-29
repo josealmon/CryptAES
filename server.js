@@ -1,18 +1,112 @@
 const express = require("express");
 const multer = require("multer");
-const CryptoJS = require("crypto-js");
+const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 
 const app = express();
 const upload = multer({ dest: "uploads/" });
 
+function encryptFile(inputPath, outputPath, key) {
+  return new Promise((resolve, reject) => {
+    const algorithm = "aes-256-cbc";
+    const iv = crypto.randomBytes(16);
+
+    const inputStream = fs.createReadStream(inputPath);
+    const outputStream = fs.createWriteStream(outputPath);
+    const cipher = crypto.createCipheriv(algorithm, crypto.scryptSync(key, "salt", 32), iv);
+
+    let processed = 0;
+    let lastProgress = 0;
+    const fileSize = fs.statSync(inputPath).size;
+
+    outputStream.write(iv);
+
+    inputStream
+      .on("data", (chunk) => {
+        processed += chunk.length;
+        const currentProgress = Math.round((processed / fileSize) * 100);
+        if (currentProgress > lastProgress) {
+          console.log(`Encryption progress: ${currentProgress}%`);
+          lastProgress = currentProgress;
+        }
+      })
+      .pipe(cipher)
+      .pipe(outputStream)
+      .on("finish", () => resolve())
+      .on("error", (err) => reject(err));
+  });
+}
+
+function decryptFile(inputPath, outputPath, key) {
+  return new Promise((resolve, reject) => {
+    const algorithm = "aes-256-cbc";
+    const fileSize = fs.statSync(inputPath).size;
+    let processed = 0;
+
+    // First read the IV (first 16 bytes)
+    const readStream = fs.createReadStream(inputPath);
+    let iv = null;
+    let chunks = [];
+
+    readStream.on("data", (chunk) => {
+      if (!iv) {
+        iv = chunk.slice(0, 16);
+        chunks.push(chunk.slice(16));
+      } else {
+        chunks.push(chunk);
+      }
+
+      processed += chunk.length;
+      const progress = Math.round((processed / fileSize) * 100);
+      console.log(`Decryption progress: ${progress}%`);
+    });
+
+    readStream.on("end", () => {
+      try {
+        const decipher = crypto.createDecipheriv(algorithm, crypto.scryptSync(key, "salt", 32), iv);
+
+        const encryptedData = Buffer.concat(chunks);
+        const decryptedData = Buffer.concat([decipher.update(encryptedData), decipher.final()]);
+
+        const outputStream = fs.createWriteStream(outputPath);
+        outputStream.write(decryptedData, (err) => {
+          if (err) reject(err);
+          outputStream.end();
+          resolve();
+        });
+      } catch (error) {
+        reject(error);
+      }
+    });
+
+    readStream.on("error", reject);
+  });
+}
+
+function cleanUploadsFolder() {
+  const uploadsDir = path.join(__dirname, "uploads");
+
+  try {
+    // Create uploads directory if it doesn't exist
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir);
+      return;
+    }
+
+    const files = fs.readdirSync(uploadsDir);
+    for (const file of files) {
+      fs.unlinkSync(path.join(uploadsDir, file));
+    }
+    console.log("Uploads folder cleaned successfully at:", new Date().toLocaleString());
+  } catch (error) {
+    console.error("Error cleaning uploads folder:", error);
+  }
+}
+
 app.use(express.static("public"));
 
-cleanUploadsFolder();
-setInterval(cleanUploadsFolder, 60 * 60 * 1000);
-
-app.post("/encrypt", upload.single("file"), (req, res) => {
+app.post("/encrypt", upload.single("file"), async (req, res) => {
   const { file } = req;
   const { key } = req.body;
 
@@ -21,99 +115,54 @@ app.post("/encrypt", upload.single("file"), (req, res) => {
   }
 
   try {
-    const fileContent = fs.readFileSync(file.path);
-    const base64Content = fileContent.toString("base64");
-    const encryptedContent = CryptoJS.AES.encrypt(base64Content, key).toString();
+    const outputPath = path.join(__dirname, "uploads", `encrypted_${file.originalname}`);
 
+    await encryptFile(file.path, outputPath, key);
+
+    // Eliminar archivo temporal
     fs.unlinkSync(file.path);
 
+    // Leer y enviar archivo encriptado
+    const encryptedFile = fs.readFileSync(outputPath);
+    fs.unlinkSync(outputPath);
+
     res.setHeader("Content-Disposition", `attachment; filename=encrypted_${file.originalname}`);
-    res.send(encryptedContent);
+    res.send(encryptedFile);
   } catch (error) {
     console.error(error);
     res.status(500).send("Error encrypting the file.");
   }
 });
 
-app.post("/decrypt", upload.single("file"), (req, res) => {
-  const { file } = req;
-  const { key } = req.body;
-
-  if (!file || !key) {
-    return res.status(400).send("File and key are required.");
-  }
-
+app.post("/decrypt", upload.single("file"), async (req, res) => {
   try {
-    const fileContent = fs.readFileSync(file.path, { encoding: "utf8" });
-    const decryptedBytes = CryptoJS.AES.decrypt(fileContent, key);
-    const decryptedBase64 = decryptedBytes.toString(CryptoJS.enc.Utf8);
+    const { file } = req;
+    const { key } = req.body;
 
-    // Verificación de desencriptación válida
-    if (!decryptedBase64) {
-      return res.status(400).json({
-        error: "Decryption failed",
-        message: "Incorrect decryption key or corrupted file",
-      });
+    if (!file || !key) {
+      return res.status(400).json({ message: "File and key are required" });
     }
 
-    // Verificación adicional: intentar convertir de base64
-    try {
-      const decryptedBuffer = Buffer.from(decryptedBase64, "base64");
+    const outputPath = path.join(__dirname, "uploads", `decrypted_${file.originalname}`);
 
-      // Verificar si es un buffer válido
-      if (decryptedBuffer.length === 0) {
-        return res.status(400).json({
-          error: "Decryption failed",
-          message: "Invalid decryption key",
-        });
-      }
-
-      fs.unlinkSync(file.path);
-
-      res.setHeader("Content-Type", "application/octet-stream");
-      res.setHeader("Content-Disposition", `attachment; filename=decrypted_${file.originalname.replace("encrypted_", "")}`);
-      res.send(decryptedBuffer);
-    } catch (bufferError) {
-      return res.status(400).json({
-        error: "Decryption failed",
-        message: "Unable to convert decrypted content",
+    await decryptFile(file.path, outputPath, key)
+      .then(() => {
+        res.sendFile(outputPath);
+      })
+      .catch((error) => {
+        // Send proper JSON response for decryption errors
+        res.status(400).json({ message: "Invalid decryption key" });
       });
-    }
   } catch (error) {
-    console.error(error);
-    res.status(500).json({
-      error: "Server error",
-      message: "Error during decryption process",
-    });
+    res.status(500).json({ message: "Server error during decryption" });
   }
 });
 
 const PORT = 3000;
 app.listen(PORT, () => {
+  cleanUploadsFolder();
+
+  setInterval(cleanUploadsFolder, 3600000);
+
   console.log(`Server running at http://localhost:${PORT}`);
 });
-
-function cleanUploadsFolder() {
-  const uploadsDir = path.join(__dirname, "uploads");
-
-  try {
-    // Leer archivos en el directorio
-    const files = fs.readdirSync(uploadsDir);
-
-    files.forEach((file) => {
-      const filePath = path.join(uploadsDir, file);
-
-      // Borrar archivos más antiguos de 1 hora
-      const stat = fs.statSync(filePath);
-      const now = new Date();
-      const fileAge = (now - stat.mtime) / (1000 * 60 * 60); // en horas
-
-      if (fileAge > 1) {
-        fs.unlinkSync(filePath);
-        console.log(`Deleted old file: ${file}`);
-      }
-    });
-  } catch (err) {
-    console.error("Error cleaning uploads folder:", err);
-  }
-}

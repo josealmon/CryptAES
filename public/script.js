@@ -6,6 +6,40 @@ document.addEventListener("DOMContentLoaded", () => {
   const fileForm = document.getElementById("fileForm");
   const messageEl = document.getElementById("message");
 
+  // Add reference to submit buttons
+  const encryptSubmitBtn = document.getElementById("encryptSubmitBtn");
+  const decryptSubmitBtn = document.getElementById("decryptSubmitBtn");
+
+  // Validation function
+  function validateForm(fileInput, keyInput, submitBtn) {
+    submitBtn.disabled = !(fileInput.files.length > 0 && keyInput.value.trim() !== "");
+  }
+
+  // Add listeners for encrypt inputs
+  document.getElementById("encryptFile").addEventListener("change", () => {
+    validateForm(document.getElementById("encryptFile"), document.getElementById("encryptKey"), encryptSubmitBtn);
+  });
+
+  document.getElementById("encryptKey").addEventListener("input", () => {
+    validateForm(document.getElementById("encryptFile"), document.getElementById("encryptKey"), encryptSubmitBtn);
+  });
+
+  // Add listeners for decrypt inputs
+  document.getElementById("decryptFile").addEventListener("change", () => {
+    validateForm(document.getElementById("decryptFile"), document.getElementById("decryptKey"), decryptSubmitBtn);
+  });
+
+  document.getElementById("decryptKey").addEventListener("input", () => {
+    validateForm(document.getElementById("decryptFile"), document.getElementById("decryptKey"), decryptSubmitBtn);
+  });
+
+  document.querySelectorAll(".file-input").forEach((input) => {
+    input.addEventListener("change", (e) => {
+      const fileName = e.target.files[0]?.name || "No file chosen";
+      e.target.parentElement.querySelector(".file-name").textContent = fileName;
+    });
+  });
+
   // Toggle between encrypt and decrypt
   encryptBtn.addEventListener("click", () => {
     encryptBtn.classList.add("active");
@@ -13,6 +47,7 @@ document.addEventListener("DOMContentLoaded", () => {
     encryptSection.style.display = "flex";
     decryptSection.style.display = "none";
     fileForm.reset();
+    encryptSubmitBtn.disabled = true;
   });
 
   decryptBtn.addEventListener("click", () => {
@@ -21,10 +56,17 @@ document.addEventListener("DOMContentLoaded", () => {
     decryptSection.style.display = "flex";
     encryptSection.style.display = "none";
     fileForm.reset();
+    decryptSubmitBtn.disabled = true;
   });
 
   fileForm.addEventListener("submit", async (e) => {
     e.preventDefault();
+
+    const overlay = document.querySelector(".overlay");
+
+    // Show overlay with spinner
+    overlay.style.display = "flex";
+    messageEl.textContent = "Processing...";
 
     const isEncrypt = encryptBtn.classList.contains("active");
     const fileInput = isEncrypt ? document.getElementById("encryptFile") : document.getElementById("decryptFile");
@@ -49,10 +91,11 @@ document.addEventListener("DOMContentLoaded", () => {
         body: formData,
       });
 
-      // Importante: verificar la respuesta JSON para manejar errores
-      if (!response.ok) {
+      // Check if response is JSON (error) or blob (success)
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
         const errorData = await response.json();
-        throw new Error(errorData.message || "Processing failed");
+        throw new Error(errorData.message);
       }
 
       const blob = await response.blob();
@@ -65,8 +108,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
       messageEl.textContent = isEncrypt ? "File encrypted successfully!" : "File decrypted successfully!";
     } catch (error) {
-      messageEl.textContent = `Error: ${error.message}`;
-      console.error("Decryption error:", error);
+      messageEl.textContent = error.message;
+      console.error("Processing error:", error);
+    } finally {
+      // Hide overlay when done
+      overlay.style.display = "none";
     }
   });
 });

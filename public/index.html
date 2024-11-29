@@ -16,30 +16,41 @@
 
       <form id="fileForm">
         <div class="form-section" id="encryptSection">
-          <label for="encryptFile">Choose file to encrypt:</label>
-          <input type="file" id="encryptFile" name="file" />
+          <label for="encryptFile" class="file-label">
+            <span class="file-button">Choose file to encrypt</span>
+            <span class="file-name">No file chosen</span>
+            <input type="file" id="encryptFile" name="file" class="file-input" />
+          </label>
 
           <label for="encryptKey">Encryption Key:</label>
           <input type="password" id="encryptKey" name="key" placeholder="Enter a strong encryption key" />
 
-          <button type="submit">Encrypt File</button>
+          <button type="submit" id="encryptSubmitBtn" disabled>Encrypt File</button>
         </div>
 
         <div class="form-section" id="decryptSection" style="display: none">
-          <label for="decryptFile">Choose encrypted file:</label>
-          <input type="file" id="decryptFile" name="file" />
+          <label for="decryptFile" class="file-label">
+            <span class="file-button">Choose file to decrypt</span>
+            <span class="file-name">No file chosen</span>
+            <input type="file" id="decryptFile" name="file" class="file-input" />
+          </label>
 
           <label for="decryptKey">Decryption Key:</label>
           <input type="password" id="decryptKey" name="key" placeholder="Enter the decryption key" />
 
-          <button type="submit">Decrypt File</button>
+          <button type="submit" id="decryptSubmitBtn" disabled>Decrypt File</button>
         </div>
       </form>
 
       <p id="message"></p>
     </div>
 
-    <a href="https://en.wikipedia.org/wiki/Advanced_Encryption_Standard" target="_blank" class="about-aes"> About AES </a>
+    <!-- Move overlay outside container -->
+    <div class="overlay" style="display: none">
+      <div class="spinner"></div>
+    </div>
+
+    <a href="https://en.wikipedia.org/wiki/Advanced_Encryption_Standard" target="_blank" class="about-aes">About AES</a>
 
     <script src="script.js"></script>
   </body>
